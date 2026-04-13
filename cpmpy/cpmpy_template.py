@@ -8,6 +8,8 @@ from cpmpy.solvers.ortools import OrtSolutionPrinter
 
 import sys
 from contextlib import contextmanager
+import os
+from pathlib import Path
 
 
 
@@ -152,11 +154,17 @@ class CPMpyModel:
 # ===============================
 
 
-# Paths
-data_path = ...
-solution_path = "solution.json"
+def solve_all():
+    for name in ["random", "hetero", "homo"] :
+        for nbr in ["0005", "0010", "0020", "0050", "0100"]:#, "0200", "0500"] :
+            data_path = f"dataset/{name}_{nbr}.csv"
+            solution_path = f"solutions/{name}_{nbr}.json"
+            main(data_path, solution_path)
 
-def main():
+
+
+
+def main(data_path, solution_path):
     # Initialize CPMpy model, open data and create variables
     mymodel = CPMpyModel()
     mymodel.open_data(path = data_path)
@@ -164,6 +172,27 @@ def main():
 
     # You can add here your constraints to the model CPMpy, which you can access with mymodel.model, using variables saved in list_boxes_var.
 
+    # for i in range(len(list_boxes_var)-1):
+    #     mymodel.model.add(list_boxes_var[i+1].position[0] >= list_boxes_var[i].position[0] + list_boxes_var[i].box.length)
+    #     mymodel.model.add(list_boxes_var[i+1].position[1] >= list_boxes_var[i].position[1] + list_boxes_var[i].box.width)
+    #     mymodel.model.add(list_boxes_var[i+1].position[2] >= list_boxes_var[i].position[2] + list_boxes_var[i].box.height)
+
+    # mymodel.model.add( cp.NoOverlap( [box.position[0] for box in list_boxes_var],  [box.box.length for box in list_boxes_var ]))  
+    # mymodel.model.add( cp.NoOverlap( [box.position[1] for box in list_boxes_var],  [box.box.width for box in list_boxes_var ]))  
+    # mymodel.model.add( cp.NoOverlap( [box.position[2] for box in list_boxes_var],  [box.box.height for box in list_boxes_var ]))  
+
+    box_i_before_j = []
+    for _ in range(len(list_boxes_var)):
+        box_i_before_j.append([])
+        for _ in range(len(list_boxes_var)):
+            box_i_before_j[-1].append( cp.intvar(0,1,shape=3))
+    for i in range(len(list_boxes_var)):
+        for j in range(len(list_boxes_var)):
+            if i != j :
+                mymodel.model.add( box_i_before_j[i][j][0] + box_i_before_j[i][j][1] + box_i_before_j[i][j][2] + box_i_before_j[j][i][0] + box_i_before_j[j][i][1] + box_i_before_j[j][i][2] >= 1 )
+                mymodel.model.add( list_boxes_var[j].position[0] + (1-box_i_before_j[i][j][0])*5000 >= list_boxes_var[i].position[0] + list_boxes_var[i].box.length )
+                mymodel.model.add( list_boxes_var[j].position[1] + (1-box_i_before_j[i][j][1])*5000  >= list_boxes_var[i].position[1] + list_boxes_var[i].box.width )
+                mymodel.model.add( list_boxes_var[j].position[2] + (1-box_i_before_j[i][j][2])*5000 >= list_boxes_var[i].position[2] + list_boxes_var[i].box.height )
 
 
     
@@ -173,6 +202,12 @@ def main():
 
     ## If you wish to save ORTools solver logs in a file, you can use the following arguments
     # mymodel.solve(path = solution_path, ortools_logs = True, ortools_logs_path = "ortools_logs.txt", time_limit = 60)
+    print(data_path)
+    print(solution_path)
 
 if __name__ == "__main__":
-    main()
+    # # Paths
+    # data_path = "dataset/hetero_0005.csv"
+    # solution_path = "solution.json"
+    #main(data_path, solution_path)
+    solve_all()
